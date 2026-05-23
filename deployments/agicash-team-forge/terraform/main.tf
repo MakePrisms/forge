@@ -4,6 +4,9 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+# Latest official NixOS AMI for the channel set by var.nixos_ami_channel
+# (default "24.11" — NixOS 24.11 stable, not unstable). Not pinned to a
+# specific AMI ID; tracks whatever the channel publishes most recently.
 data "aws_ami" "nixos" {
   most_recent = true
   owners      = ["427812963091"] # Official NixOS

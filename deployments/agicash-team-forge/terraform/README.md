@@ -12,7 +12,8 @@ in `terraform.tfvars.example` use `agicash-team-forge` as the first consumer.
 1. **AWS account** with credentials available to the operator's shell
    (`AWS_PROFILE`, `AWS_ACCESS_KEY_ID`, or `aws sso login`). Credentials are
    never stored in tfvars.
-2. **IAM policy** — attach `iam-policy.json` to the principal terraform runs as.
+2. **IAM policy** — attach `../../../iam-policy.json` (at the repo root) to the
+   principal terraform runs as. It's repo-wide, not specific to this deployment.
    The policy is region-scoped to `us-east-1`; if you change `aws_region`,
    update the policy's `aws:RequestedRegion` condition to match.
 3. **Terraform** >= 1.6.
