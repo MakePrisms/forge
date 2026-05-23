@@ -85,10 +85,9 @@ All outputs non-sensitive. State file holds the EIP allocation but no secrets (n
 
 **Choice: `deploy-rs`.**
 
-Two first-class decisions about *how* it runs:
+**Builds happen on the target machine** (`remoteBuild = true`). The box has the disk + Nix store; the operator's laptop doesn't need either.
 
-1. **Builds happen on the target machine** (`remoteBuild = true`). Not in CI, not on the operator's laptop. The box has the disk + Nix store for it; CI/laptop shouldn't.
-2. **CI is the operator** (see "CI's role" below). Solo operators can still run `nix run .#deploy.<name>` locally, but the default operator path is GitHub Actions triggering the deploy.
+Operators deploy from their laptop. The deploy command also works from CI if someone wants to wire that up later, but the design center is local.
 
 Justification:
 
@@ -105,7 +104,7 @@ Alternatives considered:
 
 Verdict: deploy-rs for v1. If we hit deploy-rs friction (build perf, flake eval cost) we can fall back to `nixos-rebuild --target-host` without changing the terraform contract — the interface between terraform and nix is just "give me an IP and an SSH key path."
 
-### Flow (solo-operator bootstrap)
+### Flow
 
 ```
 1. cp terraform.tfvars.example terraform.tfvars && edit
@@ -117,21 +116,6 @@ Verdict: deploy-rs for v1. If we hit deploy-rs friction (build perf, flake eval 
 ```
 
 `deploy-config.nix` is the seam. It is gitignored (per agicash-mints precedent) so each operator's IP/keys stay local. Shape: `{ hostname = "..."; sshPublicKeys = [ ... ]; }`.
-
-### CI's role
-
-Default *operator* path is GitHub Actions, not local. CI's job:
-
-- **Trigger deploys.** SSH-trigger `nix run .#deploy.<name>` against the target. Actual build still runs on the box (per decision 1 above).
-- **Hold inputs.** All `terraform.tfvars` inputs come from GH Actions `vars` / `secrets`, never committed. See section 5.
-- **Run terraform apply when infra changes.** Only when terraform code itself changes — not on every push.
-
-CI needs:
-- Deploy SSH private key as a GH `secret`
-- Network reach to the box (no special VPN — the bootstrap-phase security group allows it; see "Security posture")
-- AWS credentials as GH `secret`s only on jobs that run `terraform apply`
-
-Concrete workflow YAML is deferred to a follow-up PR. The decision here is the seam.
 
 ## 5. Reproducibility
 
@@ -149,18 +133,9 @@ Three layers, separated by what owns them:
 2. **Application/runtime secrets** (Discord bot tokens, Anthropic API key, etc.): live in the nix layer via `sops-nix` — encrypted in the repo, decryption key on each operator/box. The forge module is already designed for this pattern (`discordBotTokenFile = "/run/secrets/discord-token"` shape). Wire-up of sops-nix lands in the configuration.nix PR, not this terraform PR.
 3. **AWS credentials**: provided to terraform via the operator's environment (`AWS_PROFILE`, `AWS_ACCESS_KEY_ID`, or `aws sso`). Never in tfvars. Documented in README.
 
-### CI variable model
-
-When terraform runs from GitHub Actions, **nothing about a specific deployment is in the repo**. All inputs flow through GH config:
-
-- **GH `secrets`** (encrypted, never logged): `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, deploy SSH private key.
-- **GH `vars`** (visible to repo admins, not in the codebase): `name`, `aws_region`, `instance_type`, `ssh_public_key`, `root_volume_size`, etc. — not technically secret but kept out of the repo so they aren't visible to anyone browsing.
-
-The local `terraform.tfvars` path stays only for solo-operator bootstrap. Once CI is the operator, the local tfvars is just a developer's scratch file.
-
 ### State files
 
-- **v1 (this PR):** no backend block. State lives in `terraform/terraform.tfstate`, gitignored. Sufficient for "gudnuf applies, nobody else does" and for CI-as-operator if CI restores/persists the state file as an artifact between runs.
+- **v1 (this PR):** no backend block. State lives in `terraform/terraform.tfstate`, gitignored. Sufficient for a single-operator local workflow.
 - **v2 (when needed):** `backend "s3"` pointing at a bucket like `s3://makeprisms-tf-state/<name>.tfstate` with DynamoDB locking. The bootstrap for that bucket is a separate one-time terraform apply (cycle problem otherwise).
 
 README should note this trade-off so the next operator isn't surprised.
@@ -201,7 +176,6 @@ Explicit deltas from the agicash-mints/terraform pattern, so future readers don'
 - **Larger root volume** (100GB default vs. 20GB) — for Nix store + multi-user homes + Rust `target/`.
 - **No IAM instance profile by default** — forge boxes don't need to call the AWS API. Add later if/when something inside the box needs S3 access etc.
 - **`terraform.tfvars` gitignored even though `ssh_public_key` isn't secret** — operator-specific values shouldn't live in the repo.
-- **CI-as-default-operator**, not an afterthought (`vars` + `secrets` model in section 5).
 - **deploy-rs build-on-machine policy reaffirmed** — same tool as agicash-mints, but with `remoteBuild = true` promoted to a first-class decision rather than a parenthetical.
 
 ## 9. Architectural hooks for future re-use
