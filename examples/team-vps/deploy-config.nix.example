@@ -1,0 +1,14 @@
+# Copy this file to deploy-config.nix and fill in your values.
+#   cp deploy-config.nix.example deploy-config.nix
+#
+# deploy-config.nix is gitignored — each operator keeps their own IP and keys
+# local. The values are populated from the terraform outputs:
+#   hostname      <- terraform output -raw public_ip
+#   sshPublicKeys <- the same key(s) you put in terraform.tfvars
+#
+{
+  hostname = "1.2.3.4"; # paste from `terraform output -raw public_ip`
+  sshPublicKeys = [
+    "ssh-ed25519 AAAA..." # the same key passed to terraform.tfvars
+  ];
+}

@@ -5,3 +5,6 @@ result-*
 *.tfstate
 *.tfstate.backup
 *.tfvars
+
+# Per-operator deploy seam (examples/team-vps/deploy-config.nix and friends)
+deploy-config.nix

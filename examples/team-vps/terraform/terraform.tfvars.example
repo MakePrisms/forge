@@ -1,0 +1,46 @@
+# Copy this file to terraform.tfvars and fill in your values.
+#   cp terraform.tfvars.example terraform.tfvars
+
+# === REQUIRED ===
+
+# Deployment name. Used as the Name and Project tag, and as the prefix for
+# resource names (key pair, security group, etc.).
+name = "agicash-team-forge"
+
+# A single SSH public key authorized at first boot. The full team key list is
+# managed in the NixOS config (authorized_keys per user), not here.
+# Generate with: ssh-keygen -t ed25519 -f ~/.ssh/agicash-team-forge-key
+ssh_public_key = "ssh-ed25519 AAAAC3..."
+
+# === OPTIONAL (defaults are fine for most setups) ===
+
+# AWS region. Must match the region scoped in iam-policy.json.
+# aws_region = "us-east-1"
+
+# EC2 instance class. Bump to t3.large or m6i.large if on-box Rust builds get painful.
+# instance_type = "t3.medium"
+
+# Root volume size in GB. Sized for Nix store + multi-user homes + Rust target/.
+# root_volume_size = 100
+
+# CIDRs allowed to SSH and reach extra_ingress_ports. Narrow this once a VPN
+# overlay is wired in via the NixOS module.
+# ssh_ingress_cidrs = ["0.0.0.0/0"]
+
+# Open ports 80 and 443 to the world. Set false for internal-only deployments.
+# allow_http = true
+
+# Additional TCP ports opened from ssh_ingress_cidrs.
+# extra_ingress_ports = []
+
+# Allocate and associate an Elastic IP. Set false for ephemeral deployments
+# where the IP can change across stop/start.
+# allocate_eip = true
+
+# NixOS channel filter for the AMI lookup (nixos/${channel}*).
+# nixos_ami_channel = "24.11"
+
+# Free-form extra tags merged onto every resource.
+# tags = {
+#   Owner = "team-name"
+# }
