@@ -72,7 +72,7 @@ $EDITOR deploy-config.nix    # paste public_ip + ssh_public_key
 `deploy-config.nix` is gitignored so operator-specific values stay local.
 
 Then deploy with the flake's deploy attribute (see the top-level
-`examples/team-vps/README.md` once it exists, or the flake's `deploy` output).
+`deployments/agicash-team-forge/README.md` once it exists, or the flake's `deploy` output).
 
 ## State files
 
