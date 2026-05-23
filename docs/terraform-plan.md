@@ -12,22 +12,27 @@ Status: design proposal — no code yet.
 
 ## 1. Module structure
 
-Layout under `deployments/agicash-team-forge/`:
+Layout:
 
 ```
-deployments/agicash-team-forge/
-  flake.nix              # already exists — will gain deploy outputs
-  configuration.nix      # already exists — NixOS module composition
-  deploy-config.nix.example   # NEW — hostname + SSH key (gitignored when copied)
-  terraform/
-    main.tf              # AMI lookup, key pair, security group, EIP, EC2 instance
-    variables.tf         # All inputs (no consumer-specific defaults)
-    outputs.tf           # public_ip, public_dns, ssh_command, instance_id
-    versions.tf          # required_version + required_providers (pinned)
-    iam-policy.json      # least-privilege policy for the terraform principal
-    terraform.tfvars.example  # template — copy to terraform.tfvars
-    README.md            # quick start + cleanup
+<repo root>/
+  iam-policy.json        # repo-wide: least-privilege policy for the terraform
+                         # principal — shared across all deployments
+
+  deployments/agicash-team-forge/
+    flake.nix              # already exists — will gain deploy outputs
+    configuration.nix      # already exists — NixOS module composition
+    deploy-config.nix.example   # NEW — hostname + SSH key (gitignored when copied)
+    terraform/
+      main.tf              # AMI lookup, key pair, security group, EIP, EC2 instance
+      variables.tf         # All inputs (no consumer-specific defaults)
+      outputs.tf           # public_ip, public_dns, ssh_command, instance_id
+      versions.tf          # required_version + required_providers (pinned)
+      terraform.tfvars.example  # template — copy to terraform.tfvars
+      README.md            # quick start + cleanup
 ```
+
+`iam-policy.json` lives at the repo root because it's shared infrastructure-principal scope, not per-deployment. Any deployment under `deployments/` reuses the same policy.
 
 Why split `versions.tf` out of `main.tf` (vs. agicash-mints which puts it in `main.tf`): conventional terraform layout, makes the pin block easy to find, keeps `main.tf` focused on resources.
 
