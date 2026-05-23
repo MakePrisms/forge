@@ -1,4 +1,4 @@
-# Terraform Plan: `examples/team-vps/terraform/`
+# Terraform Plan: `deployments/agicash-team-forge/terraform/`
 
 Status: design proposal — no code yet.
 
@@ -12,10 +12,10 @@ Status: design proposal — no code yet.
 
 ## 1. Module structure
 
-Layout under `examples/team-vps/`:
+Layout under `deployments/agicash-team-forge/`:
 
 ```
-examples/team-vps/
+deployments/agicash-team-forge/
   flake.nix              # already exists — will gain deploy outputs
   configuration.nix      # already exists — NixOS module composition
   deploy-config.nix.example   # NEW — hostname + SSH key (gitignored when copied)
@@ -31,7 +31,7 @@ examples/team-vps/
 
 Why split `versions.tf` out of `main.tf` (vs. agicash-mints which puts it in `main.tf`): conventional terraform layout, makes the pin block easy to find, keeps `main.tf` focused on resources.
 
-Why a single flat directory and not a child module under `examples/team-vps/terraform/modules/vps/`: a child module makes sense when there are multiple callers. Today there's one. Keep it flat now; promote to a child module if/when a real second caller appears.
+Why a single flat directory and not a child module under `deployments/agicash-team-forge/terraform/modules/vps/`: a child module makes sense when there are multiple callers. Today there's one. Keep it flat now; promote to a child module if/when a real second caller appears.
 
 Per-resource breakdown (`main.tf`):
 
@@ -194,7 +194,7 @@ If/when a real second caller appears, extract `terraform/` into `modules/terrafo
 Resolved in this revision (kept here as a closed log so the answer travels with the doc):
 
 - **Q1 (single bootstrap key vs. list?)** → singular. Section 2.
-- **Q2 (canonical `name` value?)** → `agicash-team-forge`. Example dir stays `examples/team-vps/`.
+- **Q2 (canonical `name` value?)** → `agicash-team-forge`. Deployment dir is `deployments/agicash-team-forge/`.
 - **Q4 (EIP always-on?)** → `allocate_eip` variable, default `true`. Section 2.
 - **Q5 (`extra_ingress_ports` model + security posture)** → `list(number)` for ports; security posture written up in section 6 as a two-phase model.
 - **Q6 (root volume size)** → 100GB default.
@@ -204,5 +204,5 @@ Still open before implementation:
 1. **Region default — `us-east-1` or no default?** agicash-mints defaults to `us-east-1`; the IAM policy is region-scoped to `us-east-1`. Current recommendation: keep `us-east-1` default for ergonomic parity, document the IAM-policy-must-match constraint in README.
 2. **Provider version pin precision** — `~> 5.0` (matches agicash-mints), `~> 5.70` (lock minor), or `>= 5.0` (looser)? Current recommendation: `~> 5.0`, lockfile commit handles the tight pin in practice.
 3. **deploy-rs vs plain `nixos-rebuild --target-host` for the absolute first deploy?** Magic rollback only protects activation, not initial install. Current recommendation: deploy-rs from day one for consistency.
-4. **sops-nix wiring location** — does secrets bootstrap (admin key, age key generation) belong in `examples/team-vps/README.md` or in a forge-level doc? Flagging so it doesn't get lost.
+4. **sops-nix wiring location** — does secrets bootstrap (admin key, age key generation) belong in `deployments/agicash-team-forge/README.md` or in a forge-level doc? Flagging so it doesn't get lost.
 5. **Instance class for Rust builds** — `t3.medium` is the start (per section 7 cost discipline). Revisit when on-box `cargo build` of an agicash-sized workspace gets painful — likely move to `t3.large` (~$60/mo) or `m6i.large` for memory headroom.
