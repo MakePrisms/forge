@@ -78,7 +78,7 @@ in
         coordinator = {
           role = "agicash team coordinator";
           runAs = "gudnuf";
-          discordBotTokenFile = "/run/secrets/team-bot-token";
+          discordBot = "team";
         };
       }
     '';

@@ -31,14 +31,13 @@ in
       Forge users. Each entry becomes a Linux user with their own home dir,
       member of the shared `forge` group.
 
-      Additional per-user options (e.g. discordBotTokenFile) are contributed
-      by sibling modules via NixOS submodule merging.
+      Additional per-user options are contributed by sibling modules via
+      NixOS submodule merging.
     '';
     example = lib.literalExpression ''
       {
         gudnuf = {
           sshKeys = [ "ssh-ed25519 ..." ];
-          discordBotTokenFile = "/run/secrets/gudnuf-bot-token";
         };
       }
     '';
