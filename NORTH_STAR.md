@@ -51,6 +51,14 @@ Examples of configurations, not fixed deployments. As we max out compute we add 
 8. **Burst workers** — generalization of CI. Pool for parallelizable work (refactors, evals, multi-agent exploration). First thing to rent compute for.
 9. **Sandbox / private-compute** — isolated, no egress, for keys / secrets / customer data we don't want touching shared or external substrates.
 
+## Specialists, not generalists
+
+Not every agent should be the same. We build **specialists** — each agent with a narrow, well-scoped role — because a specialist's context can be crafted far more carefully than a generalist's. Smaller, focused context reasons better, retrieves memory better, costs less, and can be granted more autonomy within its scope. Specialization is what the trust × autonomy grid actually gets to leverage.
+
+The price is coordination overhead: specialists have to communicate to do anything that spans their boundaries. That overhead is what the **substrate** is for — the interface lanes below, the structured channels, the agent-mediated and agent-to-agent comms. Without solid communication infrastructure, specialization just balkanizes the system. With it, specialization becomes the source of leverage.
+
+This is why the communication layer is load-bearing — not an afterthought to the agent stack, but the thing that makes specialization viable in the first place.
+
 ## Interface lanes
 
 Four distinct modes of information flow:
