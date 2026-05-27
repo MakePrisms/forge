@@ -1,0 +1,27 @@
+# sops policy for the agicash-team-forge deployment.
+#
+# Each `creation_rules` entry tells sops which recipients to encrypt
+# new files to. When you run `sops secrets.yaml` in this directory,
+# sops walks up looking for the nearest `.sops.yaml` and applies the
+# matching rule.
+#
+# IMPORTANT: the `age1placeholder...` value below is NOT a real
+# recipient. Replace it with the public key generated on the operator
+# box (see docs/secrets-bootstrap.md, step 1):
+#
+#   age-keygen -y /var/lib/sops-nix/key.txt
+#
+# For single-operator demo deployments one age recipient is enough.
+# When the team grows, add operator and additional-host recipients
+# under `key_groups.age` — sops will then encrypt new files to all
+# listed keys (any one of which can decrypt). Existing files need
+# `sops updatekeys secrets.yaml` after a recipient change.
+
+keys:
+  - &operator_placeholder age1placeholder0000000000000000000000000000000000000000000000
+
+creation_rules:
+  - path_regex: secrets\.yaml$
+    key_groups:
+      - age:
+          - *operator_placeholder

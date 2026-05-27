@@ -8,3 +8,12 @@ result-*
 
 # Per-operator deploy seam (deployments/*/deploy-config.nix)
 deploy-config.nix
+
+# Encrypted secrets material — .example files are committed; the live
+# secrets.yaml is gitignored (still encrypted on disk, but operator-
+# specific recipients can leak metadata). Age private keys never go in
+# the repo under any circumstance.
+secrets.yaml
+*.age
+keys.txt
+key.txt

@@ -5,6 +5,7 @@
     ./users.nix
     ./discord.nix
     ./agents.nix
+    ./secrets.nix
   ];
 
   options.services.forge = {
