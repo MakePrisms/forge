@@ -6,9 +6,10 @@
     deploy-rs.url = "github:serokell/deploy-rs";
     sops-nix.url = "github:Mic92/sops-nix";
     sops-nix.inputs.nixpkgs.follows = "nixpkgs";
+    claude-code.url = "github:sadjow/claude-code-nix";
   };
 
-  outputs = { self, nixpkgs, deploy-rs, sops-nix, ... }:
+  outputs = { self, nixpkgs, deploy-rs, sops-nix, claude-code, ... }:
     let
       system = "x86_64-linux";
 
@@ -35,6 +36,7 @@
         ];
         specialArgs = {
           inherit (agicashTeamForgeConfig) sshPublicKeys;
+          claudeCode = claude-code.packages.${system}.default;
         };
       };
 
