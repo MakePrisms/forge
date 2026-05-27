@@ -6,6 +6,9 @@
     ./discord.nix
     ./agents.nix
     ./secrets.nix
+    ./skills.nix
+    ./mcp-servers.nix
+    ./plugins.nix
     ./harnesses/claude-code.nix
   ];
 

@@ -69,11 +69,16 @@
   #   1. Follow docs/secrets-bootstrap.md to generate an age key,
   #      register it in .sops.yaml, and create the encrypted
   #      secrets.yaml file containing `team-bot-token`.
-  #   2. Uncomment the block below: it declares the secret, the
-  #      Discord bot that consumes it, and the first agent that uses
-  #      the bot.
+  #   2. Uncomment the blocks below: they declare the secret, the
+  #      Discord bot that consumes it, the shared library (skills,
+  #      MCP servers, plugins) the agent draws from, and finally the
+  #      first agent itself with its per-agent whitelist.
   #   3. Redeploy. systemd starts `forge-agent-coordinator` on boot;
   #      the agent joins Discord and responds to @mentions.
+  #
+  # The `source` paths below are placeholders pending the migration of
+  # the v1 skills + dev MCP servers into this repository. See
+  # docs/per-agent-environment-design.md for the design contract.
   #
   # sops.secrets."team-bot-token" = {
   #   owner = "gudnuf";
@@ -83,6 +88,42 @@
   #   tokenFile = config.sops.secrets."team-bot-token".path;
   # };
   #
+  # # --- Shared library ----------------------------------------------------
+  # # Skills, MCP servers, and plugins declared once at the top level; each
+  # # agent references them by name. Names must be unique across each family.
+  #
+  # services.forge.skills.discord-tools = {
+  #   source = ../../skills/discord-tools;
+  #   description = "Discord channel/thread/pin ops via REST";
+  # };
+  #
+  # services.forge.mcpServers.mercury = {
+  #   command = "bun";
+  #   args = [ "run" "/srv/forge/plugins/mercury/server.ts" ];
+  #   env = { MERCURY_DB = "/var/lib/mercury/mercury.db"; };
+  # };
+  #
+  # services.forge.mcpServers.playwright = {
+  #   command = "npx";
+  #   args = [
+  #     "@playwright/mcp@latest"
+  #     "--headless"
+  #     "--executable-path" "/run/current-system/sw/bin/chromium"
+  #     "--viewport-size" "390x844"
+  #     "--output-dir" "/srv/forge/browser-output"
+  #     "--save-session"
+  #   ];
+  # };
+  #
+  # services.forge.plugins.discord = {
+  #   # Real claude-code plugin: directory containing
+  #   # `.claude-plugin/plugin.json` plus the plugin's own commands,
+  #   # MCP servers, etc. Loaded into the agent via --plugin-dir.
+  #   source = ../../plugins/discord;
+  # };
+  #
+  # # --- First agent -------------------------------------------------------
+  #
   # services.forge.agents.coordinator = {
   #   role = ''
   #     agicash team coordinator — the on-call agent in the team
@@ -91,6 +132,22 @@
   #   '';
   #   runAs = "gudnuf";
   #   discordBot = "team";
+  #
+  #   skills      = [ "discord-tools" ];
+  #   mcpServers  = [ "mercury" "playwright" ];
+  #   plugins     = [ "discord" ];
+  #
+  #   allowedTools = [
+  #     "Bash(git *)"
+  #     "Edit"
+  #     "Read"
+  #     "mcp__mercury__send"
+  #     "mcp__plugin_discord_discord__reply"
+  #   ];
+  #
+  #   # permissions schema is in place for the future scoped-policy work;
+  #   # today the harness still passes --dangerously-skip-permissions, so
+  #   # the allow/deny lists are advisory.
   # };
 
   # --- Nix GC ---
