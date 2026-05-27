@@ -135,7 +135,7 @@ Verdict: deploy-rs for v1. If we hit deploy-rs friction (build perf, flake eval 
 Three layers, separated by what owns them:
 
 1. **Terraform-side**: only `ssh_public_key` is sensitive-ish. Public keys aren't secret, but `terraform.tfvars` stays gitignored anyway so operator-specific values don't land in the repo.
-2. **Application/runtime secrets** (Discord bot tokens, Anthropic API key, etc.): live in the nix layer via `sops-nix` — encrypted in the repo, decryption key on each operator/box. The forge module is already designed for this pattern (`discordBotTokenFile = "/run/secrets/discord-token"` shape). Wire-up of sops-nix lands in the configuration.nix PR, not this terraform PR.
+2. **Application/runtime secrets** (Discord bot tokens, Anthropic API key, etc.): live in the nix layer via `sops-nix` — encrypted in the repo, decryption key on each operator/box. The forge module is already designed for this pattern (`services.forge.discord.bots.<name>.tokenFile = "/run/secrets/<bot>-token"` shape, with agents referencing bots by name via `discordBot`). Wire-up of sops-nix lands in the configuration.nix PR, not this terraform PR.
 3. **AWS credentials**: provided to terraform via the operator's environment (`AWS_PROFILE`, `AWS_ACCESS_KEY_ID`, or `aws sso`). Never in tfvars. Documented in README.
 
 ### State files

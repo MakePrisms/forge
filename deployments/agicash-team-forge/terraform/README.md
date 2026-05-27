@@ -97,9 +97,10 @@ disk and goes away with the instance.
 - **sops-nix wiring** — application/runtime secrets (Discord bot token,
   Anthropic API key, etc.) are out of scope for this PR. They live in the nix
   layer via `sops-nix`: encrypted in the repo, decryption key on each
-  operator/box. The `discordBotTokenFile = "/run/secrets/discord-token"`
-  shape is what the forge module expects. Wire-up lands with the
-  `configuration.nix` PR.
+  operator/box. The
+  `services.forge.discord.bots.<name>.tokenFile = "/run/secrets/<bot>-token"`
+  shape is what the forge module expects (agents reference bots by name via
+  `discordBot`). Wire-up lands with the `configuration.nix` PR.
 - **Lockdown phase** — the default `ssh_ingress_cidrs = ["0.0.0.0/0"]` is
   Phase-0 bootstrap. Once a VPN-style overlay (Tailscale or similar) is
   installed on the box, narrow `ssh_ingress_cidrs` to the overlay's CIDR
