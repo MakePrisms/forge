@@ -6,6 +6,7 @@
     ./discord.nix
     ./agents.nix
     ./secrets.nix
+    ./harnesses/claude-code.nix
   ];
 
   options.services.forge = {

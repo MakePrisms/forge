@@ -61,24 +61,36 @@
     sshKeys = sshPublicKeys;
   };
 
-  # --- Secrets (uncomment after bootstrap) ---
+  # --- Secrets + first agent (uncomment after bootstrap) ---
   #
   # The forge `modules/secrets.nix` module wires sops-nix plumbing in
-  # the background. To start using encrypted secrets:
+  # the background. To start using encrypted secrets and the first
+  # agent:
   #   1. Follow docs/secrets-bootstrap.md to generate an age key,
   #      register it in .sops.yaml, and create the encrypted
-  #      secrets.yaml file.
-  #   2. Uncomment the block below to declare which keys are decrypted
-  #      and which agents/bots consume them.
-  #
-  # The Discord bot manifest takes a path; sops produces that path at
-  # `/run/secrets/<name>`, which the existing schema accepts unchanged.
+  #      secrets.yaml file containing `team-bot-token`.
+  #   2. Uncomment the block below: it declares the secret, the
+  #      Discord bot that consumes it, and the first agent that uses
+  #      the bot.
+  #   3. Redeploy. systemd starts `forge-agent-coordinator` on boot;
+  #      the agent joins Discord and responds to @mentions.
   #
   # sops.secrets."team-bot-token" = {
   #   owner = "gudnuf";
   # };
+  #
   # services.forge.discord.bots.team = {
   #   tokenFile = config.sops.secrets."team-bot-token".path;
+  # };
+  #
+  # services.forge.agents.coordinator = {
+  #   role = ''
+  #     agicash team coordinator — the on-call agent in the team
+  #     Discord channel. Listen for @mentions, respond helpfully,
+  #     and learn the team's workflows as we collaborate.
+  #   '';
+  #   runAs = "gudnuf";
+  #   discordBot = "team";
   # };
 
   # --- Nix GC ---
