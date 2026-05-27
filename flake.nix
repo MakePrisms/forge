@@ -4,9 +4,11 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     deploy-rs.url = "github:serokell/deploy-rs";
+    sops-nix.url = "github:Mic92/sops-nix";
+    sops-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, deploy-rs, ... }:
+  outputs = { self, nixpkgs, deploy-rs, sops-nix, ... }:
     let
       system = "x86_64-linux";
 
@@ -27,6 +29,7 @@
         inherit system;
         modules = [
           "${nixpkgs}/nixos/modules/virtualisation/amazon-image.nix"
+          sops-nix.nixosModules.sops
           self.nixosModules.default
           ./deployments/agicash-team-forge/configuration.nix
         ];
