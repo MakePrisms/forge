@@ -4,6 +4,7 @@
   imports = [
     ./users.nix
     ./discord.nix
+    ./agents.nix
   ];
 
   options.services.forge = {
