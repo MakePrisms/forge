@@ -19,7 +19,7 @@
 
 {
   options.services.forge.plugins = lib.mkOption {
-    type = lib.types.attrsOf (lib.types.submodule ({ name, ... }: {
+    type = lib.types.attrsOf (lib.types.submodule {
       options = {
         source = lib.mkOption {
           type = lib.types.path;
@@ -31,7 +31,7 @@
           example = lib.literalExpression "./plugins/discord";
         };
       };
-    }));
+    });
     default = { };
     description = ''
       Forge plugin library. Each entry is a claude-code plugin (with a

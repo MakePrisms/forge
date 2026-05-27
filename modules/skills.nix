@@ -18,7 +18,7 @@
 
 {
   options.services.forge.skills = lib.mkOption {
-    type = lib.types.attrsOf (lib.types.submodule ({ name, ... }: {
+    type = lib.types.attrsOf (lib.types.submodule {
       options = {
         source = lib.mkOption {
           type = lib.types.path;
@@ -40,7 +40,7 @@
           example = "Discord channel/thread/pin ops via REST";
         };
       };
-    }));
+    });
     default = { };
     description = ''
       Forge skill library. Each entry is a reusable claude-code skill

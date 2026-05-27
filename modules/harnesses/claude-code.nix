@@ -88,7 +88,7 @@ let
         if agent.skills == [ ]
         then ""
         else lib.concatMapStrings
-          (skill: "- /${skill} — ${cfg.skills.${skill}.description}\n")
+          (skill: "- /${skill}: ${cfg.skills.${skill}.description}\n")
           agent.skills;
     in
     pkgs.writeText "skill-catalog-${name}.md" ''
@@ -109,20 +109,13 @@ let
       tokenFile =
         if hasDiscord then cfg.discord.bots.${agent.discordBot}.tokenFile else "";
 
-      # --plugin-dir flags — one per declared plugin name. The harness
-      # points at /etc/forge/plugin-library/<name>/ which environment.etc
-      # populates from the declared `source`.
+      # --plugin-dir flags — one per declared plugin name. Each arg is
+      # shell-escaped defensively even though plugin names come from the
+      # Nix config (defense-in-depth against future mkMerge from untrusted
+      # sources).
       pluginDirArgs = lib.concatMapStringsSep " "
-        (plugin: ''--plugin-dir "${pluginLibraryDir}/${plugin}"'')
+        (plugin: "--plugin-dir ${lib.escapeShellArg "${pluginLibraryDir}/${plugin}"}")
         agent.plugins;
-
-      # --allowedTools — single comma-separated arg. Only emitted when
-      # the list is non-empty; an empty --allowedTools "" would strip the
-      # built-in tool surface (see spec "corrections from technical review").
-      allowedToolsFlag =
-        if agent.allowedTools == [ ]
-        then ""
-        else ''--allowedTools "${lib.concatStringsSep "," agent.allowedTools}"'';
     in
     pkgs.writeShellApplication {
       name = "forge-agent-${name}";
@@ -135,12 +128,14 @@ let
         # Per-agent skill symlinks live under .claude/skills/. Wipe the
         # whole subtree on every start so removing a skill from the
         # config actually removes the symlink from the agent's view; then
-        # recreate from scratch with the current whitelist.
+        # recreate from scratch with the current whitelist. Skill names
+        # are shell-escaped defensively even though they come from the
+        # Nix config.
         rm -rf "$STATE_DIR/.claude/skills"
         mkdir -p "$STATE_DIR/.claude/skills"
         ${lib.concatMapStrings
           (skill: ''
-            ln -sf "${skillLibraryDir}/${skill}" "$STATE_DIR/.claude/skills/${skill}"
+            ln -sf ${lib.escapeShellArg "${skillLibraryDir}/${skill}"} ${lib.escapeShellArg "$STATE_DIR/.claude/skills/${skill}"}
           '')
           agent.skills}
 
@@ -157,8 +152,9 @@ let
           # Plumb the discord plugin: read the bot token from the secret
           # file and write a per-agent .env. The claude discord plugin
           # consumes DISCORD_BOT_TOKEN from $DISCORD_STATE_DIR/.env.
-          if [ -f "${tokenFile}" ]; then
-            printf 'DISCORD_BOT_TOKEN=%s\n' "$(cat "${tokenFile}")" > "$STATE_DIR/.env"
+          # tokenFile is shell-escaped defensively.
+          if [ -f ${lib.escapeShellArg tokenFile} ]; then
+            printf 'DISCORD_BOT_TOKEN=%s\n' "$(cat ${lib.escapeShellArg tokenFile})" > "$STATE_DIR/.env"
             chmod 600 "$STATE_DIR/.env"
           else
             echo "WARN: discord bot token file ${tokenFile} not found; starting without discord" >&2
@@ -176,17 +172,24 @@ let
         # reads, breaking subscription auth). --strict-mcp-config is also
         # NOT used (it strips plugin-bundled MCP servers). See spec for the
         # full justification of each flag.
+        #
+        # NOTE on --allowedTools: empirical testing of claude-code 2.1.150
+        # shows --allowedTools has no observable effect on the agent's tool
+        # surface when --dangerously-skip-permissions is set. The actual
+        # tool-surface-restriction flag is --tools (kept off here so agents
+        # have full default tools). agent.allowedTools is preserved as
+        # schema (it lands in settings.json) for when the scoped-permissions
+        # follow-up turns this back on.
         exec tmux -L forge new-session -A -s "agent-${name}" \
           claude \
-            --model "${agent.model}" \
+            --model ${lib.escapeShellArg agent.model} \
             --effort max \
             --mcp-config .mcp.json \
             ${pluginDirArgs} \
             --settings .claude/settings.json \
             --setting-sources project \
             --append-system-prompt-file .claude/skill-catalog.md \
-            --dangerously-skip-permissions \
-            ${allowedToolsFlag}
+            --dangerously-skip-permissions
       '';
     };
 
@@ -229,36 +232,12 @@ in
     {
       environment.systemPackages = [ claudeCode pkgs.tmux ];
 
-      # Shared library installation. Attrset uniqueness is enforced at
-      # parse time, so duplicate library names can't reach this point —
-      # the defensive assertion below covers the same ground explicitly
-      # for anyone reading the eval output.
+      # Shared library installation. Attrset uniqueness is structurally
+      # enforced — Nix's module system already errors on overlapping
+      # definitions via lib.mkMerge — so no defensive assertion needed
+      # here. The substantive cross-reference assertions (agent.skills
+      # must reference declared skills, etc.) live in modules/agents.nix.
       environment.etc = skillEtc // pluginEtc;
-
-      # Eval-time sanity assertion. Nix attrsets enforce uniqueness on
-      # their own, but a named assertion produces a better error message
-      # if someone tries to merge configs with overlapping library entries
-      # via lib.mkMerge.
-      assertions = [
-        {
-          assertion =
-            (lib.length (lib.attrNames cfg.skills))
-              == (lib.length (lib.unique (lib.attrNames cfg.skills)));
-          message = "services.forge.skills has duplicate entries (this should be impossible — file a bug).";
-        }
-        {
-          assertion =
-            (lib.length (lib.attrNames cfg.plugins))
-              == (lib.length (lib.unique (lib.attrNames cfg.plugins)));
-          message = "services.forge.plugins has duplicate entries (this should be impossible — file a bug).";
-        }
-        {
-          assertion =
-            (lib.length (lib.attrNames cfg.mcpServers))
-              == (lib.length (lib.unique (lib.attrNames cfg.mcpServers)));
-          message = "services.forge.mcpServers has duplicate entries (this should be impossible — file a bug).";
-        }
-      ];
     }
 
     # Per-agent: systemd service + wrapper installed in systemPackages so

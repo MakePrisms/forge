@@ -103,6 +103,18 @@
   #   env = { MERCURY_DB = "/var/lib/mercury/mercury.db"; };
   # };
   #
+  # services.forge.mcpServers.playwright = {
+  #   command = "npx";
+  #   args = [
+  #     "@playwright/mcp@latest"
+  #     "--headless"
+  #     "--executable-path" "/run/current-system/sw/bin/chromium"
+  #     "--viewport-size" "390x844"
+  #     "--output-dir" "/srv/forge/browser-output"
+  #     "--save-session"
+  #   ];
+  # };
+  #
   # services.forge.plugins.discord = {
   #   # Real claude-code plugin: directory containing
   #   # `.claude-plugin/plugin.json` plus the plugin's own commands,
@@ -122,7 +134,7 @@
   #   discordBot = "team";
   #
   #   skills      = [ "discord-tools" ];
-  #   mcpServers  = [ "mercury" ];
+  #   mcpServers  = [ "mercury" "playwright" ];
   #   plugins     = [ "discord" ];
   #
   #   allowedTools = [
