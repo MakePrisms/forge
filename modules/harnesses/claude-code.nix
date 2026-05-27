@@ -76,7 +76,6 @@ let
           export DISCORD_STATE_DIR="$STATE_DIR"
         ''}
 
-        export CLAUDE_CODE_MAX_THINKING_TOKENS=-1
         cd "$STATE_DIR"
 
         # claude-code is interactive — it needs a PTY. tmux provides the
@@ -85,6 +84,7 @@ let
         exec tmux -L forge new-session -A -s "agent-${name}" \
           claude \
             --model "${agent.model}" \
+            --effort max \
             --dangerously-skip-permissions \
             ${lib.optionalString hasDiscord
               ''--channels "plugin:discord@claude-plugins-official"''}
