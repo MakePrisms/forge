@@ -19,6 +19,16 @@ Three costs the north-star says we want to pay differently:
 
 - **Context pollution.** Every agent's system prompt lists everything available. NORTH_STAR's "bounded context" property is undeliverable until what an agent sees is bounded.
 - **Trust gradient with no teeth.** `--dangerously-skip-permissions` is set for every agent. Capability scoping is by convention. **Per gudnuf's call: keep `--dangerously-skip-permissions` as the default for now — scoped-down agents are a separate design problem requiring real thought about what each role actually needs.** The spec ships the schema seam for scoping; the actual policy comes from a follow-up.
+
+## Authentication (the one-login-per-user property)
+
+Each human authenticates to claude-code **once** (`claude login`, or by setting `ANTHROPIC_API_KEY`); **every agent that runs as that Linux user inherits the auth via `$HOME`.**
+
+How: systemd `User = gudnuf` sets `$HOME = /home/gudnuf`. The wrapper does `cd "$STATE_DIR/$NAME"` (CWD change only, not HOME). claude-code reads its OAuth credential file at `$HOME/.claude/.credentials.json` regardless of CWD. No env-var plumbing, no `apiKeyHelper`, no key files.
+
+**This is why the recipe does NOT use `--bare`.** `--bare`'s help text says *"Anthropic auth is strictly ANTHROPIC_API_KEY or apiKeyHelper via --settings (OAuth and keychain are never read)"* — verified empirically: `--bare` with HOME set but no `ANTHROPIC_API_KEY` reports "Not logged in." `--bare` is mutually exclusive with subscription-OAuth auth.
+
+**Prerequisite per user:** before running any agents, the human runs `claude login` (or installs an `ANTHROPIC_API_KEY` in their environment). One time per Linux user.
 - **Reproducibility drift.** "What does this agent have access to?" depends on what was in `/srv/forge/.claude/` + which shell flags fired + what's in `~/.claude/`. Answer is implicit and per-host.
 
 ## How v1 already does this (the seams we extend)
@@ -45,9 +55,8 @@ This is the clean split. The spec's schema was already shaped for it; the cost o
 ```bash
 cd "$STATE_DIR/$NAME"
 exec claude \
-  --bare \
-  --add-dir "$STATE_DIR/$NAME" \
   --model "${agent.model}" \
+  --effort max \
   --mcp-config .mcp.json \
   ${each_plugin_as:} --plugin-dir /etc/forge/plugin-library/<name> \
   --settings .claude/settings.json \
@@ -59,14 +68,17 @@ exec claude \
 
 Why each flag:
 
-- **`--bare`** blocks all implicit context: binary-bundled skills, auto-`MEMORY.md`, user settings, user plugins, hooks, attribution, keychain reads, CLAUDE.md auto-discovery. The only way to actually achieve bounded context.
-- **`--add-dir "$STATE_DIR/$NAME"`** restores `CLAUDE.md` discovery for the per-agent dir (since `--bare` disables CLAUDE.md auto-discovery).
-- **`--mcp-config .mcp.json`** loads only the agent's declared MCPs from the per-agent CWD. **No `--strict-mcp-config`** — strict silently strips plugin-bundled MCP servers (`${CLAUDE_PLUGIN_ROOT}/mcp.json`), which would break discord, mercury, pikachat, nwc. With `--bare` already gating user-level MCPs, strict is redundant and harmful.
+- **`--model`** + **`--effort max`** — declared per-agent. Replaces v1's dead `CLAUDE_CODE_MAX_THINKING_TOKENS=-1` env var (verified absent from 2.1.150 binary; `CLAUDE_CODE_EFFORT_LEVEL` / `--effort` is the current mechanism).
+- **`--mcp-config .mcp.json`** loads only the agent's declared MCPs from the per-agent CWD. **No `--strict-mcp-config`** — strict silently strips plugin-bundled MCP servers (`${CLAUDE_PLUGIN_ROOT}/mcp.json`), which would break discord, mercury, pikachat, nwc. The per-agent CWD already isolates project-level `.mcp.json`; strict is unnecessary and harmful.
 - **`--plugin-dir`** per declared plugin. Each plugin's bundled `.mcp.json` loads via the plugin path (tool prefix becomes `mcp__plugin_<name>_<server>__`).
-- **`--settings .claude/settings.json`** + **`--setting-sources project`** loads only the per-agent settings file; without `--setting-sources project`, user `settings.json`/`settings.local.json` merge in.
-- **`--append-system-prompt-file .claude/skill-catalog.md`** injects a generated skill catalog (name + description per declared skill) so the agent knows what's available without us loading every skill body into context. Skills remain invocable via `/skill-name` from CWD's `.claude/skills/`. This resolves the "discoverability vs isolation" open question (Worker B #8) — narrow context with discoverable invocation.
+- **`--settings .claude/settings.json`** + **`--setting-sources project`** loads only the per-agent settings file; without `--setting-sources project`, user `settings.json`/`settings.local.json` merge in (verified).
+- **`--append-system-prompt-file .claude/skill-catalog.md`** injects a generated skill catalog (name + description per declared skill) so the agent knows what's available without us loading every skill body into context. Skills remain invocable via `/skill-name` from CWD's `.claude/skills/`. Resolves the "discoverability vs isolation" open question — narrow context with discoverable invocation.
 - **`--dangerously-skip-permissions`** stays per gudnuf's call. Scoped-down agents will need their own design pass.
 - **`--allowedTools`** explicit even with skip-permissions because it controls which tools the model knows it has (affects system prompt and tool-call grammar), independent of permission gating.
+
+**Notably absent: `--bare`.** Earlier drafts of this spec used `--bare` to achieve maximum bounded context (blocks binary-bundled skills, auto-`MEMORY.md`, user settings, user plugins). But `--bare` *also* blocks OAuth/keychain reads (verified), which breaks subscription auth. Since auth-via-OAuth is the working model (and the desired "one login per user" property), we drop `--bare`.
+
+The tradeoff: ~12 binary-bundled skills (`verify`, `run`, `loop`, `init`, `code-review`, `security-review`, etc.) appear in the agent's system prompt regardless of declared whitelist. Acceptable noise (~few hundred tokens) in exchange for working auth. Future claude-code may add granular flags to disable these individually; meanwhile the bounded-context property is *mostly* achieved (user-level skills not present on this box; user-level MCPs blocked via per-agent `.mcp.json` + CWD isolation; user-level settings blocked via `--setting-sources project`).
 
 ## Per-agent CWD contents (built by harness on every start)
 
