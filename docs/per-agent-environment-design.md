@@ -28,9 +28,17 @@ Three costs the north-star says we want to pay differently:
 1. **Per-agent state dir** — `/srv/forge/servers/default/agents/<identity>/` already exists with `.env`, `access.json`, `inbox/`.
 2. **CWD as a discovery root** — claude-code finds project-level `CLAUDE.md`, `.claude/skills/`, and `.mcp.json` from CWD.
 3. **`--mcp-config <path>`** is already per-launch, just not declarative.
-4. **`--channels` / `--dangerously-load-development-channels`** are per-launch plugin loaders (undocumented in current `claude --help` but still functional).
+4. **`--channels` and `--dangerously-load-development-channels`** are two distinct per-launch loaders that look similar but aren't:
+   - `--channels plugin:<name>@<marketplace>` loads a **real claude-code plugin** (has `.claude-plugin/plugin.json`, bundled `.mcp.json`, slash commands, etc.). v1 uses this for the official discord plugin.
+   - `--dangerously-load-development-channels server:<name>` loads a **local MCP server** that hasn't been packaged as a plugin (no manifest). v1 uses this for `mercury`, `pikachat`, `nwc`, `agicash` — they're all just Bun/Node MCP servers.
+   - Both flags are **undocumented in `claude --help` as of 2.1.150** and are on borrowed time. v2 replaces them with stable, documented flags.
 
-v2's move: **change CWD to a per-agent dir**, populate that dir with exactly the declared content, exec claude-code in `--bare` mode with explicit add-back flags so nothing implicit leaks in.
+v2's move: **change CWD to a per-agent dir**, populate that dir with exactly the declared content, exec claude-code in `--bare` mode with explicit add-back flags so nothing implicit leaks in. v1's two distinct loaders map cleanly to two v2 categories:
+
+- v1 `--channels plugin:X@…` (marketplace plugin)            → v2 `services.forge.plugins.X` + `--plugin-dir <path-to-plugin-root>`
+- v1 `--dangerously-load-development-channels server:Y` (dev MCP) → v2 `services.forge.mcpServers.Y` + entry in per-agent `.mcp.json`
+
+This is the clean split. The spec's schema was already shaped for it; the cost of v1's `--channels`-flavored umbrella is that Mercury looks like a "plugin" when it's really just a server.
 
 ## The exec recipe (verified against claude-code 2.1.150)
 
@@ -113,11 +121,18 @@ services.forge.mcpServers.playwright = {
 };
 
 services.forge.plugins.discord = {
-  source = "${pkgs.claude-plugins-official}/discord";  # path to plugin dir containing .claude-plugin/plugin.json
+  # Real claude-code plugin (has .claude-plugin/plugin.json + bundled .mcp.json).
+  # Loaded via --plugin-dir; its bundled MCP servers register as mcp__plugin_<name>_<server>__*.
+  source = "${pkgs.claude-plugins-official}/discord";
 };
 
-services.forge.plugins.mercury = {
-  source = ../forge/plugins/mercury;  # v1's Bun/TS plugin
+# Mercury / pikachat / nwc are NOT plugins — they're Bun MCP servers v1 loads
+# via the deprecated --dangerously-load-development-channels mechanism.
+# In v2 they live under mcpServers, with their command + args declared directly.
+services.forge.mcpServers.mercury = {
+  command = "bun";
+  args = [ "run" "${../forge/plugins/mercury}/server.ts" ];
+  env = { MERCURY_DB = "/var/lib/mercury/mercury.db"; };
 };
 
 # Per-agent whitelist — extends the existing schema via submodule merging.
@@ -128,9 +143,12 @@ services.forge.agents.coordinator = {
   discordBot = "team";
 
   skills      = [ "discord-tools" "verify" ];
-  mcpServers  = [ "playwright" ];
-  plugins     = [ "discord" "mercury" ];
-  allowedTools = [ "Bash(git *)" "Edit" "Read" "mcp__plugin_discord_discord__reply" ];
+  mcpServers  = [ "playwright" "mercury" ];
+  plugins     = [ "discord" ];
+  allowedTools = [ "Bash(git *)" "Edit" "Read"
+                   "mcp__plugin_discord_discord__reply"   # tool from the discord plugin
+                   "mcp__mercury__send"                   # tool from the mercury MCP server
+                 ];
 
   permissions = {
     skipPrompts = true;   # default; flip for scoped agents (future)
