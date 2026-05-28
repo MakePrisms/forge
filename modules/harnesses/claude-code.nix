@@ -180,7 +180,7 @@ let
         # have full default tools). agent.allowedTools is preserved as
         # schema (it lands in settings.json) for when the scoped-permissions
         # follow-up turns this back on.
-        exec tmux -L forge new-session -A -s "agent-${name}" \
+        exec tmux -L forge new-session -d -s "agent-${name}" \
           claude \
             --model ${lib.escapeShellArg agent.model} \
             --effort max \
@@ -199,10 +199,14 @@ let
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
-      Type = "simple";
+      # tmux new-session -d daemonizes the server; Type=forking matches.
+      # When claude exits in the session, the server exits → systemd sees
+      # the service stop → Restart=on-failure kicks in.
+      Type = "forking";
       User = agent.runAs;
       Group = "forge";
       ExecStart = "${mkWrapper name agent}/bin/forge-agent-${name}";
+      ExecStop = "${pkgs.tmux}/bin/tmux -L forge kill-session -t agent-${name}";
       Restart = "on-failure";
       RestartSec = "5s";
       StartLimitBurst = 3;
