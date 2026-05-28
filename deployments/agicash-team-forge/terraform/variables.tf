@@ -53,7 +53,7 @@ variable "allocate_eip" {
 variable "nixos_ami_channel" {
   description = "NixOS channel filter passed to the AMI data source (nixos/$${channel}*). Bumping is a deliberate input change."
   type        = string
-  default     = "24.11"
+  default     = "25.11"
 }
 
 variable "tags" {
