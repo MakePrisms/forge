@@ -164,6 +164,25 @@ let
 
         cd "$STATE_DIR"
 
+        # Pre-seed the runAs user's claude state so headless agents never
+        # block on interactive first-run prompts. Both flags persist
+        # naturally once accepted; we just write them up front. Idempotent.
+        #   - Workspace trust for STATE_DIR        → ~/.claude.json
+        #     (.projects[STATE_DIR].hasTrustDialogAccepted)
+        #   - --dangerously-skip-permissions accept → ~/.claude/settings.json
+        #     (.skipDangerousModePermissionPrompt)
+        CLAUDE_JSON="$HOME/.claude.json"
+        CLAUDE_SETTINGS="$HOME/.claude/settings.json"
+        mkdir -p "$HOME/.claude"
+        [ -f "$CLAUDE_JSON" ]     || echo '{}' > "$CLAUDE_JSON"
+        [ -f "$CLAUDE_SETTINGS" ] || echo '{}' > "$CLAUDE_SETTINGS"
+        tmp=$(mktemp)
+        jq --arg p "$STATE_DIR" '.projects[$p].hasTrustDialogAccepted = true' \
+          "$CLAUDE_JSON" > "$tmp" && mv "$tmp" "$CLAUDE_JSON"
+        tmp=$(mktemp)
+        jq '.skipDangerousModePermissionPrompt = true' \
+          "$CLAUDE_SETTINGS" > "$tmp" && mv "$tmp" "$CLAUDE_SETTINGS"
+
         # claude-code is interactive — it needs a PTY. tmux provides the
         # PTY and makes the session attachable. Shared "forge" socket so
         # `tmux -L forge ls` enumerates every agent on this user.
