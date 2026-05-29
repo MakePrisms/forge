@@ -55,10 +55,23 @@
   # --- forge ---
   services.forge.enable = true;
 
-  # First forge user. The placeholder key list comes from deploy-config.nix
-  # via specialArgs; refine this once per-user key partitioning is decided.
-  services.forge.users.gudnuf = {
-    sshKeys = sshPublicKeys;
+  # Root is the only *login* user (authorized above). `team` is a forge
+  # service account with no SSH keys — agents run as it, but you can't log
+  # in as it. Its ~/.claude is seeded once from root's credentials so the
+  # agent inherits the subscription auth.
+  services.forge.users.team = {
+    sshKeys = [ ];
+  };
+
+  # --- First agent (no-Discord validation) ---
+  # Minimal agent to prove the harness pipeline end-to-end: runs claude in
+  # tmux under the `team` user, no Discord/skills/MCP yet.
+  services.forge.agents.scout = {
+    role = ''
+      forge validation agent. You run headless in a tmux session on the
+      agicash-team-forge box. Respond concisely when an operator attaches.
+    '';
+    runAs = "team";
   };
 
   # --- Secrets + first agent (uncomment after bootstrap) ---
