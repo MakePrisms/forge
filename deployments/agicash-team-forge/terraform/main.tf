@@ -44,12 +44,48 @@ locals {
     },
     var.tags,
   )
+
+  # Authorized SSH pubkeys: read from ../authorized-keys, the same file nix
+  # ingests for users.users.<u>.openssh.authorizedKeys.keys at activation
+  # time. One source of truth; bootstrap key and ongoing access stay aligned
+  # by construction.
+  authorized_keys = [
+    for line in split("\n", file("${path.module}/../authorized-keys")) :
+    trimspace(line)
+    if length(trimspace(line)) > 0 && !startswith(trimspace(line), "#")
+  ]
+
+  # Effective bootstrap key: explicit var wins; otherwise first entry in
+  # authorized-keys. The aws_key_pair resource is first-boot-only — every
+  # entry in authorized-keys is authorized once nix activation lands.
+  ssh_public_key = (
+    var.ssh_public_key != ""
+    ? var.ssh_public_key
+    : try(local.authorized_keys[0], "")
+  )
 }
 
 # Key pair for first-boot SSH access
 resource "aws_key_pair" "this" {
   key_name   = "${var.name}-key"
-  public_key = var.ssh_public_key
+  public_key = local.ssh_public_key
+
+  lifecycle {
+    precondition {
+      condition = can(regex("^(ssh-(rsa|ed25519|ecdsa)|ecdsa-sha2-)", local.ssh_public_key))
+      error_message = <<-EOT
+        No valid SSH public key resolved for the first-boot aws_key_pair.
+
+        The bootstrap key comes from `../authorized-keys` (first non-comment,
+        non-blank line) by default. Provide a key via either:
+          - Appending an OpenSSH pubkey to ../authorized-keys, or
+          - Setting TF_VAR_ssh_public_key="$(cat path/to/key.pub)", or
+          - Adding ssh_public_key = "ssh-..." to terraform.tfvars.
+
+        Got: "${substr(local.ssh_public_key, 0, 60)}"
+      EOT
+    }
+  }
 
   tags = local.tags
 }

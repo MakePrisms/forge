@@ -1,0 +1,15 @@
+# SSH public keys authorized on the agicash-team-forge box.
+#
+# This is the single source of truth for SSH access:
+#   - terraform reads the FIRST non-comment line as the bootstrap key for
+#     aws_key_pair (first-boot SSH; only ever needs to let the FIRST deploy
+#     land);
+#   - nix reads the FULL list into users.users.<u>.openssh.authorizedKeys.keys
+#     during deploy-rs activation (ongoing access for every operator).
+#
+# Pubkeys aren't secret — append yours when you need access. Generate:
+#   ssh-keygen -t ed25519 -C "your-handle@laptop"
+#
+# Lines starting with `#` and blank lines are ignored.
+
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDBdECADsBI6TeCJ0XEcePe0mo1O2rwnd0BPHLX6F2do agicash-team-forge
