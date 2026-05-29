@@ -1,6 +1,7 @@
 variable "name" {
   description = "Deployment name. Used as the Name and Project tag, and as the prefix for resource names (key pair, security group, etc.)."
   type        = string
+  default     = "agicash-team-forge"
 }
 
 variable "aws_region" {
@@ -22,8 +23,18 @@ variable "root_volume_size" {
 }
 
 variable "ssh_public_key" {
-  description = "A single SSH public key authorized at first boot via aws_key_pair. The full team key list is managed in the NixOS config (authorized_keys per user), not here — this is bootstrap only."
+  description = <<-EOT
+    Override for the first-boot SSH public key (aws_key_pair). Default ""
+    means: use the first non-comment line of ../authorized-keys, which is
+    the same file nix reads for the full users.users.<u>.authorizedKeys
+    list at activation time — one source of truth, no drift.
+
+    Set this explicitly (terraform.tfvars or TF_VAR_ssh_public_key) only
+    if you need to bootstrap with a key that isn't in authorized-keys for
+    some reason.
+  EOT
   type        = string
+  default     = ""
 }
 
 variable "ssh_ingress_cidrs" {
