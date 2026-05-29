@@ -1,6 +1,7 @@
 variable "name" {
   description = "Deployment name. Used as the Name and Project tag, and as the prefix for resource names (key pair, security group, etc.)."
   type        = string
+  default     = "agicash-team-forge"
 }
 
 variable "aws_region" {
@@ -22,8 +23,19 @@ variable "root_volume_size" {
 }
 
 variable "ssh_public_key" {
-  description = "A single SSH public key authorized at first boot via aws_key_pair. The full team key list is managed in the NixOS config (authorized_keys per user), not here — this is bootstrap only."
+  description = <<-EOT
+    A single SSH public key authorized at first boot via aws_key_pair.
+
+    Defaults to "" — when empty, terraform reads ~/.ssh/id_ed25519.pub (the
+    standard OpenSSH default location). Set this explicitly when your key
+    lives elsewhere, e.g. via terraform.tfvars or:
+      TF_VAR_ssh_public_key="$(cat ~/.ssh/my-key.pub)" terraform apply
+
+    The full team key list is managed in the NixOS config (authorized_keys
+    per user), not here — this is bootstrap only.
+  EOT
   type        = string
+  default     = ""
 }
 
 variable "ssh_ingress_cidrs" {

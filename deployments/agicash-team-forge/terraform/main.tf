@@ -44,12 +44,39 @@ locals {
     },
     var.tags,
   )
+
+  # Effective SSH public key: explicit var.ssh_public_key wins; otherwise
+  # fall back to ~/.ssh/id_ed25519.pub (the OpenSSH default key path). The
+  # ternary short-circuits, so the file() is only read when the var is
+  # empty — operators with a key elsewhere can set TF_VAR_ssh_public_key
+  # without needing that file to exist.
+  ssh_public_key = (
+    var.ssh_public_key != ""
+    ? var.ssh_public_key
+    : trimspace(try(file(pathexpand("~/.ssh/id_ed25519.pub")), ""))
+  )
 }
 
 # Key pair for first-boot SSH access
 resource "aws_key_pair" "this" {
   key_name   = "${var.name}-key"
-  public_key = var.ssh_public_key
+  public_key = local.ssh_public_key
+
+  lifecycle {
+    precondition {
+      condition = can(regex("^(ssh-(rsa|ed25519|ecdsa)|ecdsa-sha2-)", local.ssh_public_key))
+      error_message = <<-EOT
+        No valid SSH public key available for first-boot access.
+
+        Provide one of:
+          - terraform.tfvars: ssh_public_key = "ssh-ed25519 AAAA…"
+          - environment:       TF_VAR_ssh_public_key="$(cat path/to/key.pub)"
+          - default location: place an OpenSSH public key at ~/.ssh/id_ed25519.pub
+
+        Got: "${substr(local.ssh_public_key, 0, 60)}"
+      EOT
+    }
+  }
 
   tags = local.tags
 }
